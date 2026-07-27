@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dilo en voz alta — juego de números</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --noche:#171436;
+  --noche-2:#221c4d;
+  --carta:#2b2461;
+  --carta-alta:#382e7a;
+  --menta:#4fe3b0;
+  --ambar:#ffc94d;
+  --coral:#ff6b7a;
+  --texto:#ece9ff;
+  --tenue:#9d95d6;
+  --borde:rgba(255,255,255,.10);
+  --radio:20px;
+  --sombra:0 18px 40px rgba(8,4,30,.55);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  font-family:"Nunito Sans",system-ui,sans-serif;
+  color:var(--texto);
+  background:
+    radial-gradient(900px 600px at 12% -5%, #3a2c85 0%, transparent 60%),
+    radial-gradient(700px 500px at 95% 10%, #1d4f6b 0%, transparent 55%),
+    var(--noche);
+  background-attachment:fixed;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:24px 16px 56px;
+}
+body.bloqueado{overflow:hidden}
+button{font-family:inherit}
+:focus-visible{outline:3px solid var(--ambar);outline-offset:3px;border-radius:12px}
+
+/* ---------- cabecera ---------- */
+header{width:100%;max-width:760px;display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.logo{
+  font-family:"Fredoka",sans-serif;font-weight:700;font-size:clamp(22px,4.4vw,30px);
+  line-height:1;letter-spacing:-.5px;margin:0;
+}
+.logo span{color:var(--menta)}
+.sub{margin:4px 0 0;font-size:13px;color:var(--tenue)}
+.header-txt{flex:1;min-width:0}
+.icon-btn{
+  border:1px solid var(--borde);background:rgba(255,255,255,.06);color:var(--texto);
+  width:46px;height:46px;border-radius:14px;cursor:pointer;font-size:20px;
+  display:grid;place-items:center;transition:transform .15s ease, background .15s ease;
+}
+.icon-btn:hover{background:rgba(255,255,255,.14);transform:translateY(-2px)}
+
+/* ---------- marcadores ---------- */
+.marcadores{display:flex;gap:10px;width:100%;max-width:760px;margin-bottom:18px}
+.chip{
+  flex:1;background:rgba(255,255,255,.05);border:1px solid var(--borde);
+  border-radius:16px;padding:10px 12px;text-align:center;
+}
+.chip b{display:block;font-family:"Fredoka",sans-serif;font-size:24px;line-height:1.1}
+.chip small{font-size:11px;color:var(--tenue);text-transform:uppercase;letter-spacing:.8px}
+.chip.aciertos b{color:var(--menta)}
+.chip.fallos b{color:var(--coral)}
+.chip.racha b{color:var(--ambar)}
+
+/* ---------- tablero ---------- */
+.tablero{
+  width:100%;max-width:760px;background:linear-gradient(180deg,var(--carta),var(--noche-2));
+  border:1px solid var(--borde);border-radius:28px;box-shadow:var(--sombra);
+  padding:30px 22px 26px;text-align:center;position:relative;overflow:hidden;
+}
+.tablero::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(400px 160px at 50% 0%, rgba(79,227,176,.18), transparent 70%);
+}
+.etiqueta{font-size:12px;letter-spacing:2.5px;text-transform:uppercase;color:var(--tenue);margin:0 0 14px}
+.numero{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;min-height:104px;align-items:center}
+.tile{
+  font-family:"Fredoka",sans-serif;font-weight:700;
+  font-size:clamp(46px,13vw,76px);line-height:1;
+  background:rgba(0,0,0,.28);border:1px solid var(--borde);
+  border-radius:14px;padding:10px 14px;min-width:.72em;
+  box-shadow:inset 0 -6px 0 rgba(0,0,0,.25);
+}
+.tile.anim{animation:caer .38s cubic-bezier(.2,.9,.3,1.4) both}
+@keyframes caer{from{transform:translateY(-26px) rotateX(70deg);opacity:0}to{transform:none;opacity:1}}
+.tablero.error{animation:temblor .4s}
+@keyframes temblor{0%,100%{transform:none}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(4px)}}
+
+/* ---------- micrófono ---------- */
+.zona-mic{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:22px;position:relative;z-index:1}
+.mic{
+  width:96px;height:96px;border-radius:50%;border:none;cursor:pointer;
+  background:linear-gradient(160deg,var(--menta),#2bb98d);color:#0d2b22;
+  font-size:38px;display:grid;place-items:center;position:relative;
+  box-shadow:0 12px 26px rgba(79,227,176,.35);transition:transform .15s ease;
+}
+.mic:hover{transform:scale(1.05)}
+.mic:disabled{filter:grayscale(.7);opacity:.5;cursor:not-allowed;transform:none}
+.mic.escuchando{background:linear-gradient(160deg,var(--coral),#d94357);color:#fff}
+.mic.escuchando::before,.mic.escuchando::after{
+  content:"";position:absolute;inset:-6px;border-radius:50%;
+  border:3px solid rgba(255,107,122,.6);animation:onda 1.6s ease-out infinite;
+}
+.mic.escuchando::after{animation-delay:.8s}
+@keyframes onda{to{inset:-34px;opacity:0}}
+.fila-mic{display:flex;align-items:center;gap:16px}
+.mini{
+  width:60px;height:60px;border-radius:50%;cursor:pointer;font-size:24px;
+  border:1px solid var(--borde);background:rgba(255,255,255,.08);color:var(--texto);
+  display:grid;place-items:center;transition:transform .15s ease,background .15s ease;
+}
+.mini:hover{background:rgba(255,255,255,.16);transform:translateY(-2px)}
+#nuevo:hover{transform:translateY(-2px) rotate(-25deg)}
+.pista{font-size:14px;color:var(--tenue);min-height:22px}
+.pista em{color:var(--texto);font-style:normal;font-weight:600}
+
+/* ---------- intentos y aviso ---------- */
+.intentos{display:flex;gap:8px;justify-content:center;margin-top:6px}
+.punto{width:11px;height:11px;border-radius:50%;background:rgba(255,255,255,.16)}
+.punto.gastado{background:var(--coral)}
+.aviso{
+  margin:18px auto 0;max-width:520px;border-radius:16px;padding:12px 16px;
+  font-weight:600;font-size:15px;min-height:0;display:none;
+}
+.aviso.ok{display:block;background:rgba(79,227,176,.14);border:1px solid rgba(79,227,176,.4);color:var(--menta)}
+.aviso.mal{display:block;background:rgba(255,107,122,.13);border:1px solid rgba(255,107,122,.4);color:var(--coral)}
+.aviso.info{display:block;background:rgba(255,201,77,.12);border:1px solid rgba(255,201,77,.4);color:var(--ambar)}
+
+/* ---------- controles ---------- */
+.controles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:22px;position:relative;z-index:1}
+.btn{
+  border:none;border-radius:14px;padding:13px 22px;font-size:15px;font-weight:700;
+  cursor:pointer;transition:transform .15s ease,filter .15s ease;
+}
+.btn:hover{transform:translateY(-2px);filter:brightness(1.08)}
+.btn.primario{background:var(--ambar);color:#3a2600;box-shadow:0 10px 22px rgba(255,201,77,.25)}
+.btn.suave{background:rgba(255,255,255,.09);color:var(--texto);border:1px solid var(--borde)}
+.escribir{display:flex;gap:8px;justify-content:center;margin-top:16px;position:relative;z-index:1}
+.escribir input{
+  width:150px;padding:12px 14px;border-radius:14px;border:1px solid var(--borde);
+  background:rgba(0,0,0,.25);color:var(--texto);font-size:16px;font-family:inherit;text-align:center;
+}
+.escribir input::placeholder{color:var(--tenue)}
+
+/* ---------- panel de ajustes ---------- */
+.velo{position:fixed;inset:0;background:rgba(10,6,32,.7);backdrop-filter:blur(4px);z-index:20;display:none}
+.velo.abierto{display:block}
+.panel{
+  position:fixed;top:0;right:0;height:100vh;height:100dvh;width:min(430px,100%);z-index:21;
+  background:var(--noche-2);border-left:1px solid var(--borde);
+  transform:translateX(100%);transition:transform .28s ease;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding:22px 20px 60px;
+}
+.panel.abierto{transform:none}
+.panel h2{font-family:"Fredoka",sans-serif;font-size:22px;margin:0}
+.panel-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.grupo{margin-top:24px;border-top:1px solid var(--borde);padding-top:18px}
+.grupo:first-of-type{border-top:none}
+.grupo h3{font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:var(--menta);margin:0 0 12px}
+.campo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.campo label{font-size:14px;color:var(--texto)}
+.campo .ayuda{display:block;font-size:12px;color:var(--tenue);margin-top:2px}
+.campo input[type=number],.campo select,.campo input[type=range]{
+  background:rgba(0,0,0,.3);border:1px solid var(--borde);color:var(--texto);
+  border-radius:10px;padding:9px 10px;font-family:inherit;font-size:14px;width:120px;
+}
+.campo input[type=range]{padding:0;width:130px}
+.campo input[type=checkbox]{width:20px;height:20px;accent-color:var(--menta)}
+.tramo{background:rgba(255,255,255,.05);border:1px solid var(--borde);border-radius:14px;padding:12px;margin-bottom:10px}
+.tramo-fila{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tramo-fila span{font-size:13px;color:var(--tenue)}
+.tramo input{width:78px;background:rgba(0,0,0,.3);border:1px solid var(--borde);color:var(--texto);border-radius:10px;padding:8px;font-family:inherit;text-align:center}
+.tramo .quitar{margin-left:auto;background:none;border:none;color:var(--coral);cursor:pointer;font-size:18px}
+.prob{margin-top:8px;font-size:12px;color:var(--menta);font-weight:700}
+.aviso-panel{font-size:13px;color:var(--coral);margin-top:8px;min-height:18px}
+.nota{font-size:12px;color:var(--tenue);line-height:1.5;margin-top:18px}
+
+.confeti{position:fixed;width:9px;height:14px;border-radius:2px;z-index:30;pointer-events:none;animation:caida 1.5s linear forwards}
+@keyframes caida{to{transform:translateY(70vh) rotate(540deg);opacity:0}}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+}
+
+/* En pantallas táctiles el hover se queda pegado: se desactiva */
+@media (hover:none){
+  .icon-btn:hover,.mini:hover,#nuevo:hover,.mic:hover,.btn:hover{transform:none;filter:none}
+  .btn:active,.mini:active,.mic:active{transform:scale(.96)}
+}
+
+/* Tablet y móvil grande */
+@media (max-width:700px){
+  body{padding:18px 12px 40px}
+  header{margin-bottom:18px}
+  .tablero{padding:24px 16px 22px;border-radius:24px}
+  .controles .btn{flex:1 1 44%;padding:13px 12px}
+  .escribir input{flex:1 1 auto;min-width:0;max-width:220px}
+  .panel{width:100%;border-left:none}
+}
+
+/* Móvil */
+@media (max-width:520px){
+  .sub{font-size:12px}
+  .marcadores{gap:6px}
+  .chip{padding:8px 6px;border-radius:14px}
+  .chip b{font-size:20px}
+  .chip small{font-size:10px;letter-spacing:.4px}
+  .numero{gap:6px;min-height:88px}
+  .tile{font-size:clamp(32px,10.5vw,54px);padding:8px 10px;border-radius:12px}
+  .mic{width:84px;height:84px;font-size:32px}
+  .mini{width:54px;height:54px;font-size:21px}
+  .fila-mic{gap:12px}
+  .aviso{font-size:14px;padding:11px 13px}
+  .controles{gap:8px}
+  .controles .btn{flex:1 1 100%}
+  .escribir{flex-wrap:nowrap}
+  .escribir input{max-width:none}
+  /* Los campos de ajustes pasan a dos líneas para no apretujarse */
+  .campo{flex-wrap:wrap}
+  .campo label{flex:1 1 100%}
+  .campo input[type=number],.campo select,.campo input[type=range]{width:100%}
+  .campo input[type=checkbox]{width:22px;height:22px;flex:0 0 auto}
+  .tramo input{flex:1 1 60px;width:auto}
+}
+
+/* Móvil estrecho */
+@media (max-width:360px){
+  .tile{font-size:clamp(26px,9.5vw,42px);padding:6px 8px}
+  .mini{width:48px;height:48px;font-size:19px}
+  .mic{width:76px;height:76px;font-size:28px}
+}
+
+/* Móvil en horizontal: menos aire vertical */
+@media (max-height:560px) and (orientation:landscape){
+  body{padding:12px}
+  header{margin-bottom:10px}
+  .marcadores{margin-bottom:10px}
+  .tablero{padding:16px 18px}
+  .numero{min-height:0}
+  .tile{font-size:clamp(30px,7vh,48px);padding:6px 10px}
+  .zona-mic{margin-top:12px}
+  .mic{width:64px;height:64px;font-size:26px}
+  .mini{width:48px;height:48px;font-size:19px}
+  .controles{margin-top:14px}
+  .controles .btn{flex:0 1 auto;padding:10px 16px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-txt">
+    <h1 class="logo">Dilo en <span>voz alta</span></h1>
+    <p class="sub">Genera un número, léelo en voz alta y comprueba si acertaste.</p>
+  </div>
+  <button class="icon-btn" id="abrirAjustes" title="Ajustes" aria-label="Abrir ajustes">⚙</button>
+</header>
+
+<div class="marcadores">
+  <div class="chip aciertos"><b id="mAciertos">0</b><small>Aciertos</small></div>
+  <div class="chip fallos"><b id="mFallos">0</b><small>Fallos</small></div>
+  <div class="chip racha"><b id="mRacha">0</b><small>Racha</small></div>
+</div>
+
+<main class="tablero" id="tablero">
+  <p class="etiqueta" id="etiqueta">Tu número</p>
+  <div class="numero" id="numero" aria-live="polite"></div>
+
+  <div class="zona-mic">
+    <div class="fila-mic">
+      <button class="mic" id="mic" title="Hablar" aria-label="Hablar">🎙</button>
+      <button class="mini" id="nuevo" title="Generar otro número" aria-label="Generar otro número">🎲</button>
+      <button class="mini" id="hablar" title="Escuchar el número" aria-label="Escuchar el número">🔊</button>
+    </div>
+    <div class="pista" id="pista">Pulsa Generar número para empezar.</div>
+    <div class="intentos" id="intentos"></div>
+  </div>
+
+  <div class="aviso" id="aviso" role="status"></div>
+
+  <div class="controles">
+    <button class="btn primario" id="generar">Generar número</button>
+    <button class="btn suave" id="leer">Léemelo</button>
+    <button class="btn suave" id="reiniciar">Reiniciar marcador</button>
+  </div>
+
+  <div class="escribir">
+    <input id="escrito" type="number" inputmode="numeric" placeholder="o escríbelo">
+    <button class="btn suave" id="comprobar">Comprobar</button>
+  </div>
+</main>
+
+<div class="velo" id="velo"></div>
+<aside class="panel" id="panel" aria-label="Ajustes">
+  <div class="panel-top">
+    <h2>Ajustes</h2>
+    <button class="icon-btn" id="cerrarAjustes" aria-label="Cerrar ajustes">✕</button>
+  </div>
+
+  <div class="grupo">
+    <h3>Rango permitido</h3>
+    <div class="campo">
+      <label>Mínimo global<span class="ayuda">Desde 10</span></label>
+      <input type="number" id="cfgMin" min="10" max="10000">
+    </div>
+    <div class="campo">
+      <label>Máximo global<span class="ayuda">Hasta 10000</span></label>
+      <input type="number" id="cfgMax" min="10" max="10000">
+    </div>
+  </div>
+
+  <div class="grupo">
+    <h3>Tramos y probabilidad</h3>
+    <div id="tramos"></div>
+    <button class="btn suave" id="anadirTramo" style="width:100%">+ Añadir tramo</button>
+    <p class="aviso-panel" id="avisoTramos"></p>
+  </div>
+
+  <div class="grupo">
+    <h3>Juego</h3>
+    <div class="campo">
+      <label>Intentos antes de revelar</label>
+      <input type="number" id="cfgIntentos" min="1" max="10">
+    </div>
+    <div class="campo">
+      <label>Generar otro tras acertar</label>
+      <input type="checkbox" id="cfgAutoAcierto">
+    </div>
+    <div class="campo">
+      <label>Encender el micrófono al generar<span class="ayuda">El permiso se pide una sola vez</span></label>
+      <input type="checkbox" id="cfgAutoMic">
+    </div>
+    <div class="campo">
+      <label>Evitar repetir el número anterior</label>
+      <input type="checkbox" id="cfgNoRepetir">
+    </div>
+  </div>
+
+  <div class="grupo">
+    <h3>Voz</h3>
+    <div class="campo">
+      <label>Idioma</label>
+      <select id="cfgIdioma">
+        <option value="es-ES">Español (España)</option>
+        <option value="es-MX">Español (México)</option>
+        <option value="es-AR">Español (Argentina)</option>
+        <option value="es-CO">Español (Colombia)</option>
+        <option value="es-US">Español (EE. UU.)</option>
+        <option value="en-US">Inglés (EE. UU.)</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Velocidad de lectura<span class="ayuda" id="valVel">1.0×</span></label>
+      <input type="range" id="cfgVelocidad" min="0.5" max="1.5" step="0.1">
+    </div>
+    <div class="campo">
+      <label>Leer el número al acertar</label>
+      <input type="checkbox" id="cfgLeerAcierto">
+    </div>
+  </div>
+
+  <div class="grupo">
+    <h3>Sonido</h3>
+    <div class="campo">
+      <label>Efectos de acierto y fallo</label>
+      <input type="checkbox" id="cfgEfectos">
+    </div>
+    <div class="campo">
+      <label>Volumen de los efectos<span class="ayuda" id="valVol">50%</span></label>
+      <input type="range" id="cfgVolumen" min="0" max="1" step="0.05">
+    </div>
+    <div class="campo">
+      <label>Probar los efectos</label>
+      <span>
+        <button class="btn suave" id="probarOk" style="padding:8px 12px">Acierto</button>
+        <button class="btn suave" id="probarMal" style="padding:8px 12px">Fallo</button>
+      </span>
+    </div>
+  </div>
+
+  <p class="nota">El reconocimiento de voz funciona en Chrome, Edge y Safari, con conexión a internet y permiso de micrófono. Si el navegador bloquea el micrófono, escribe el número en la casilla de la pantalla principal.</p>
+</aside>
+
+<script>
+/* =========================================================
+   Configuración
+   ========================================================= */
+const LIMITE_MIN = 10, LIMITE_MAX = 10000;
+
+const cfgPorDefecto = {
+  min: 10, max: 1000,
+  tramos: [
+    {min:100, max:1000, peso:7},
+    {min:10,  max:100,  peso:3}
+  ],
+  intentos: 3,
+  autoAcierto: true,
+  autoMic: false,
+  noRepetir: true,
+  idioma: "es-ES",
+  velocidad: 1,
+  leerAcierto: false,
+  efectos: true,
+  volumen: 0.5
+};
+let cfg = JSON.parse(JSON.stringify(cfgPorDefecto));
+
+async function guardarCfg(){
+  try{ if(window.storage) await window.storage.set("cfg-numeros", JSON.stringify(cfg)); }catch(e){}
+}
+async function cargarCfg(){
+  try{
+    if(window.storage){
+      const r = await window.storage.get("cfg-numeros");
+      if(r && r.value) cfg = Object.assign({}, cfgPorDefecto, JSON.parse(r.value));
+    }
+  }catch(e){}
+}
+
+/* =========================================================
+   Estado
+   ========================================================= */
+let objetivo = null, anterior = null, fallosSeguidos = 0;
+let aciertos = 0, fallos = 0, racha = 0, escuchando = false, recog = null;
+
+const $ = id => document.getElementById(id);
+
+/* =========================================================
+   Generación ponderada
+   ========================================================= */
+function tramosValidos(){
+  return cfg.tramos.filter(t =>
+    Number.isFinite(t.min) && Number.isFinite(t.max) && t.max > t.min && t.peso > 0
+  );
+}
+function generarNumero(){
+  const lista = tramosValidos();
+  let n;
+  if(!lista.length){
+    n = aleatorio(cfg.min, cfg.max);
+  }else{
+    const total = lista.reduce((s,t)=>s+t.peso,0);
+    let r = Math.random()*total, elegido = lista[lista.length-1];
+    for(const t of lista){ if(r < t.peso){ elegido = t; break; } r -= t.peso; }
+    const lo = Math.max(cfg.min, Math.min(elegido.min, elegido.max));
+    const hi = Math.min(cfg.max, Math.max(elegido.min, elegido.max));
+    n = aleatorio(lo, hi);
+  }
+  if(cfg.noRepetir && n === anterior && (cfg.max - cfg.min) > 1) return generarNumero();
+  return n;
+}
+const aleatorio = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+
+/* =========================================================
+   Interpretar lo que dice la persona
+   ========================================================= */
+const PALABRAS = {
+  cero:0,un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,
+  diez:10,once:11,doce:12,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,
+  dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintiun:21,veintiuna:21,veintidos:22,
+  veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,
+  veintinueve:29,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,
+  noventa:90,cien:100,ciento:100,doscientos:200,doscientas:200,trescientos:300,trescientas:300,
+  cuatrocientos:400,cuatrocientas:400,quinientos:500,quinientas:500,seiscientos:600,
+  seiscientas:600,setecientos:700,setecientas:700,ochocientos:800,ochocientas:800,
+  novecientos:900,novecientas:900,mil:1000
+};
+const normalizar = t => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+
+function candidatos(texto){
+  const t = normalizar(texto);
+  const res = new Set();
+  const digitos = t.match(/\d+/g);
+  if(digitos){
+    digitos.forEach(d => res.add(parseInt(d,10)));
+    if(digitos.length > 1) res.add(parseInt(digitos.join(""),10)); // "3 45" → 345
+  }
+  const p = palabrasANumero(t);
+  if(p !== null) res.add(p);
+  return [...res].filter(n => Number.isFinite(n));
+}
+function palabrasANumero(t){
+  const tokens = t.replace(/[^a-z\s]/g," ").split(/\s+/).filter(Boolean);
+  let total = 0, actual = 0, hubo = false;
+  for(const tk of tokens){
+    if(tk === "y") continue;
+    const v = PALABRAS[tk];
+    if(v === undefined){ continue; }
+    hubo = true;
+    if(v === 1000){ actual = (actual === 0 ? 1 : actual) * 1000; total += actual; actual = 0; }
+    else actual += v;
+  }
+  return hubo ? total + actual : null;
+}
+
+/* =========================================================
+   Pantalla
+   ========================================================= */
+function pintarNumero(n){
+  const cont = $("numero");
+  cont.innerHTML = "";
+  const txt = n === null ? "?" : String(n);
+  [...txt].forEach((c,i)=>{
+    const d = document.createElement("div");
+    d.className = "tile anim";
+    d.style.animationDelay = (i*70)+"ms";
+    d.textContent = c;
+    cont.appendChild(d);
+  });
+}
+function pintarIntentos(){
+  const c = $("intentos"); c.innerHTML = "";
+  if(objetivo === null) return;
+  for(let i=0;i<cfg.intentos;i++){
+    const p = document.createElement("span");
+    p.className = "punto" + (i < fallosSeguidos ? " gastado" : "");
+    c.appendChild(p);
+  }
+}
+function decirAviso(txt, tipo){
+  const a = $("aviso");
+  a.textContent = txt;
+  a.className = "aviso " + (tipo || "");
+  if(!txt) a.className = "aviso";
+}
+function marcadores(){
+  $("mAciertos").textContent = aciertos;
+  $("mFallos").textContent = fallos;
+  $("mRacha").textContent = racha;
+}
+function confeti(){
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const colores = ["#4fe3b0","#ffc94d","#ff6b7a","#8f7bff"];
+  for(let i=0;i<26;i++){
+    const d = document.createElement("div");
+    d.className = "confeti";
+    d.style.left = (10+Math.random()*80)+"vw";
+    d.style.top = (18+Math.random()*18)+"vh";
+    d.style.background = colores[i%colores.length];
+    d.style.animationDelay = (Math.random()*.3)+"s";
+    document.body.appendChild(d);
+    setTimeout(()=>d.remove(), 2000);
+  }
+}
+
+/* =========================================================
+   Efectos de sonido
+   ========================================================= */
+let audioCtx = null;
+function ctx(){
+  if(!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return null;
+    audioCtx = new AC();
+  }
+  if(audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+function tono(freqIni, freqFin, inicio, dur, tipo, pico){
+  const c = ctx(); if(!c) return;
+  const osc = c.createOscillator(), gan = c.createGain();
+  const t = c.currentTime + inicio;
+  osc.type = tipo;
+  osc.frequency.setValueAtTime(freqIni, t);
+  if(freqFin !== freqIni) osc.frequency.exponentialRampToValueAtTime(freqFin, t + dur);
+  const vol = pico * cfg.volumen;
+  gan.gain.setValueAtTime(0.0001, t);
+  gan.gain.exponentialRampToValueAtTime(Math.max(vol,0.0002), t + 0.015);
+  gan.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(gan).connect(c.destination);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+function sonarAcierto(){
+  if(!cfg.efectos) return;
+  [[659,0],[784,0.09],[988,0.18],[1319,0.27]].forEach(([f,d]) => tono(f,f,d,0.22,"triangle",0.22));
+}
+function sonarFallo(){
+  if(!cfg.efectos) return;
+  tono(320,150,0,0.28,"sawtooth",0.14);
+  tono(160,90,0.12,0.3,"square",0.09);
+}
+function sonarRevelar(){
+  if(!cfg.efectos) return;
+  tono(440,660,0,0.18,"sine",0.16);
+  tono(660,440,0.18,0.22,"sine",0.13);
+}
+
+/* =========================================================
+   Voz que lee
+   ========================================================= */
+function leer(texto, alTerminar){
+  if(!("speechSynthesis" in window)){ if(alTerminar) alTerminar(); return; }
+  speechSynthesis.cancel();
+  pausado = true;                       // no evaluar lo que dice la propia página
+  // En móvil el altavoz y el reconocedor se pelean por el micrófono: se pausa la escucha
+  const reanudar = esMovil && !esIOS && micEncendido;
+  if(reanudar){
+    clearTimeout(temporizadorReinicio);
+    if(recog){ try{ recog.abort(); }catch(e){} }
+  }
+  let hecho = false;
+  const terminar = () => {
+    if(hecho) return;
+    hecho = true;
+    setTimeout(()=>{
+      pausado = false;
+      if(reanudar && micEncendido) arrancarEscucha();
+    }, 300);
+    if(alTerminar) alTerminar();
+  };
+  const u = new SpeechSynthesisUtterance(texto);
+  u.lang = cfg.idioma;
+  u.rate = cfg.velocidad;
+  u.onend = terminar;
+  u.onerror = terminar;
+  speechSynthesis.speak(u);
+  setTimeout(terminar, 4000 + texto.length*60);   // red de seguridad
+}
+
+/* =========================================================
+   Reconocimiento de voz
+   Se abre UNA sola sesión y se mantiene viva: el navegador
+   pide permiso una vez, no en cada número.
+   ========================================================= */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const esIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+              (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const esMovil = esIOS || /Android|Mobile/i.test(navigator.userAgent);
+let micEncendido = false, streamMic = null, pausado = false, temporizadorReinicio = null;
+let vigilante = null, huboAudio = false, vacios = 0;
+
+function pista(txt, html){
+  if(html) $("pista").innerHTML = txt; else $("pista").textContent = txt;
+}
+function pintarMic(){
+  $("mic").classList.toggle("escuchando", micEncendido);
+  $("mic").setAttribute("aria-pressed", micEncendido ? "true" : "false");
+  $("mic").title = micEncendido ? "Apagar micrófono" : "Encender micrófono";
+}
+
+/* Pide el permiso una única vez.
+   En móvil se suelta enseguida: si la página retiene el micrófono,
+   el reconocedor de Android se queda sin audio y no entiende nada. */
+async function pedirPermiso(){
+  if(streamMic) return true;
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    if(esMovil) stream.getTracks().forEach(t => t.stop());
+    else streamMic = stream;
+    return true;
+  }catch(err){
+    if(err.name === "NotAllowedError" || err.name === "SecurityError")
+      pista("El navegador bloqueó el micrófono. Ábrelo en el candado de la barra de direcciones, o escribe el número abajo.");
+    else if(err.name === "NotFoundError")
+      pista("No se encontró ningún micrófono en este aparato.");
+    else
+      pista("No se pudo abrir el micrófono (" + err.name + "). Escribe el número abajo.");
+    return false;
+  }
+}
+function soltarPermiso(){
+  if(streamMic){ streamMic.getTracks().forEach(t => t.stop()); streamMic = null; }
+}
+
+function prepararMicro(){
+  if(!SR){
+    $("mic").disabled = true;
+    pista("Este navegador no reconoce voz. Usa Chrome, Edge o Safari, o escribe el número abajo.");
+    return;
+  }
+  recog = new SR();
+  recog.continuous = !esMovil;              // en móvil la escucha continua no entrega resultados
+  recog.interimResults = true;
+  recog.maxAlternatives = esMovil ? 1 : 3;  // Android falla con varias alternativas
+  recog.lang = cfg.idioma;
+
+  recog.onaudiostart = () => { huboAudio = true; clearTimeout(vigilante); };
+  recog.onspeechstart = () => { if(objetivo !== null) pista("Te oigo…"); };
+
+  recog.onstart = () => {
+    escuchando = true;
+    if(objetivo !== null) pista("Te escucho…");
+  };
+
+  recog.onend = () => {
+    escuchando = false;
+    clearTimeout(vigilante);
+    if(!micEncendido) return;
+    if(esIOS){                       // iPhone: hay que volver a tocar el botón
+      micEncendido = false; pintarMic();
+      pista("Toca el micrófono para decir el número.");
+      return;
+    }
+    clearTimeout(temporizadorReinicio);   // el navegador corta por silencio: se reanuda solo
+    if(pausado) return;                   // la página está hablando: se reanuda al terminar
+    temporizadorReinicio = setTimeout(() => { if(micEncendido && !pausado) arrancarEscucha(); }, esMovil ? 450 : 300);
+  };
+
+  recog.onerror = e => {
+    escuchando = false;
+    if(e.error === "no-speech" || e.error === "aborted") return;  // normal, se reanuda solo
+    if(e.error === "not-allowed" || e.error === "service-not-allowed"){
+      apagarMicro();
+      pista("El micrófono está bloqueado para esta página. Permítelo en los ajustes del navegador, o escribe el número abajo.");
+      return;
+    }
+    if(e.error === "network"){ pista("El reconocimiento de voz necesita internet. Revisa la conexión."); return; }
+    pista("El micrófono falló (" + e.error + "). Vuelve a tocarlo.");
+  };
+
+  recog.onresult = e => {
+    if(pausado || objetivo === null) return;   // ignora lo que dice la propia página
+    let texto = "", final = false;
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      texto += e.results[i][0].transcript;
+      if(e.results[i].isFinal) final = true;
+    }
+    pista('Escuché: <em>' + texto.trim() + '</em>', true);
+    if(final){
+      let nums = candidatos(texto);
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        for(let j=1;j<e.results[i].length;j++) nums = nums.concat(candidatos(e.results[i][j].transcript));
+      }
+      evaluar(nums, texto.trim());
+    }
+  };
+}
+
+function arrancarEscucha(){
+  if(!recog || escuchando) return;
+  recog.lang = cfg.idioma;
+  huboAudio = false;
+  clearTimeout(vigilante);
+  vigilante = setTimeout(() => {
+    if(micEncendido && !huboAudio)
+      pista("El navegador no está enviando audio. Prueba con Chrome, revisa que ninguna otra app esté usando el micrófono, o escribe el número abajo.");
+  }, 9000);
+  try{ recog.start(); }
+  catch(e){ /* ya estaba arrancando */ }
+}
+
+async function encenderMicro(){
+  if(!recog) return false;
+  if(!window.isSecureContext){
+    pista("El micrófono solo funciona con HTTPS. Publica la página o ábrela desde un servidor seguro.");
+    return false;
+  }
+  if(!(await pedirPermiso())) return false;
+  micEncendido = true;
+  pintarMic();
+  arrancarEscucha();
+  return true;
+}
+
+function apagarMicro(){
+  micEncendido = false;
+  clearTimeout(temporizadorReinicio);
+  clearTimeout(vigilante);
+  if(recog){ try{ recog.abort(); }catch(e){} }
+  soltarPermiso();
+  escuchando = false;
+  pintarMic();
+}
+
+function alternarMicro(){
+  if(!recog) return;
+  if(micEncendido){ apagarMicro(); pista("Micrófono apagado. Tócalo para volver a hablar."); return; }
+  encenderMicro().then(ok => { if(ok && objetivo === null) pista("Genera un número y dilo en voz alta."); });
+}
+
+/* =========================================================
+   Lógica del juego
+   ========================================================= */
+function nuevoNumero(){
+  anterior = objetivo;
+  objetivo = generarNumero();
+  fallosSeguidos = 0;
+  pintarNumero(objetivo);
+  pintarIntentos();
+  decirAviso("");
+  $("etiqueta").textContent = "Léelo en voz alta";
+  pista(micEncendido ? "Te escucho… di el número." : "Toca el micrófono y di el número.");
+  $("escrito").value = "";
+  if(cfg.autoMic && !micEncendido && recog) encenderMicro();
+}
+
+function evaluar(nums, textoOriginal){
+  if(objetivo === null) return;
+  if(!nums.length){
+    $("pista").innerHTML = 'No entendí un número en «' + (textoOriginal||"") + '». Repítelo despacio.';
+    return;
+  }
+  if(nums.includes(objetivo)) acertar();
+  else fallar(nums[0]);
+}
+
+function acertar(){
+  aciertos++; racha++; marcadores();
+  sonarAcierto();
+  decirAviso("¡Correcto! " + objetivo + " es el número.", "ok");
+  confeti();
+  const seguir = () => { if(cfg.autoAcierto) setTimeout(nuevoNumero, 900); };
+  if(cfg.leerAcierto) leer("¡Correcto! " + objetivo, seguir); else seguir();
+}
+
+function fallar(dicho){
+  fallos++; racha = 0; marcadores();
+  fallosSeguidos++;
+  sonarFallo();
+  pintarIntentos();
+  $("tablero").classList.remove("error"); void $("tablero").offsetWidth;
+  $("tablero").classList.add("error");
+
+  if(fallosSeguidos >= cfg.intentos){
+    decirAviso("Dijiste " + dicho + ". El número era " + objetivo + ". Escucha y sigue con otro.", "info");
+    sonarRevelar();
+    setTimeout(() => leer("El número era " + objetivo, () => setTimeout(nuevoNumero, 600)), 450);
+  }else{
+    const quedan = cfg.intentos - fallosSeguidos;
+    decirAviso("Dijiste " + dicho + ", no es. Te " + (quedan===1?"queda 1 intento":"quedan "+quedan+" intentos") + ".", "mal");
+  }
+}
+
+/* =========================================================
+   Panel de ajustes
+   ========================================================= */
+function pintarTramos(){
+  const cont = $("tramos"); cont.innerHTML = "";
+  const total = cfg.tramos.reduce((s,t)=>s+(t.peso>0?t.peso:0),0) || 1;
+  cfg.tramos.forEach((t,i)=>{
+    const div = document.createElement("div");
+    div.className = "tramo";
+    div.innerHTML =
+      '<div class="tramo-fila">' +
+        '<span>De</span><input type="number" data-i="'+i+'" data-k="min" value="'+t.min+'">' +
+        '<span>a</span><input type="number" data-i="'+i+'" data-k="max" value="'+t.max+'">' +
+        '<button class="quitar" data-quitar="'+i+'" aria-label="Quitar tramo">✕</button>' +
+      '</div>' +
+      '<div class="tramo-fila" style="margin-top:8px">' +
+        '<span>Peso</span><input type="number" min="0" step="1" data-i="'+i+'" data-k="peso" value="'+t.peso+'">' +
+        '<span class="prob">' + Math.round((Math.max(t.peso,0)/total)*100) + '% de las veces</span>' +
+      '</div>';
+    cont.appendChild(div);
+  });
+  cont.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change", e=>{
+      const i = +e.target.dataset.i, k = e.target.dataset.k;
+      let v = parseInt(e.target.value,10);
+      if(!Number.isFinite(v)) v = 0;
+      if(k !== "peso") v = Math.min(LIMITE_MAX, Math.max(LIMITE_MIN, v));
+      cfg.tramos[i][k] = v;
+      validarTramos(); pintarTramos(); guardarCfg();
+    });
+  });
+  cont.querySelectorAll("[data-quitar]").forEach(b=>{
+    b.addEventListener("click", e=>{
+      cfg.tramos.splice(+e.target.dataset.quitar,1);
+      validarTramos(); pintarTramos(); guardarCfg();
+    });
+  });
+}
+function validarTramos(){
+  const msg = [];
+  cfg.tramos.forEach((t,i)=>{
+    if(t.max <= t.min) msg.push("Tramo "+(i+1)+": el máximo debe ser mayor que el mínimo.");
+    else if(t.min < cfg.min || t.max > cfg.max) msg.push("Tramo "+(i+1)+": se recorta al rango global "+cfg.min+"–"+cfg.max+".");
+  });
+  if(!tramosValidos().length) msg.push("Sin tramos válidos se usa el rango global completo.");
+  $("avisoTramos").textContent = msg.join(" ");
+}
+function pintarPanel(){
+  $("cfgMin").value = cfg.min;
+  $("cfgMax").value = cfg.max;
+  $("cfgIntentos").value = cfg.intentos;
+  $("cfgAutoAcierto").checked = cfg.autoAcierto;
+  $("cfgAutoMic").checked = cfg.autoMic;
+  $("cfgNoRepetir").checked = cfg.noRepetir;
+  $("cfgIdioma").value = cfg.idioma;
+  $("cfgVelocidad").value = cfg.velocidad;
+  $("valVel").textContent = Number(cfg.velocidad).toFixed(1) + "×";
+  $("cfgEfectos").checked = cfg.efectos;
+  $("cfgVolumen").value = cfg.volumen;
+  $("valVol").textContent = Math.round(cfg.volumen*100) + "%";
+  pintarTramos(); validarTramos();
+}
+function abrirPanel(a){
+  $("panel").classList.toggle("abierto", a);
+  $("velo").classList.toggle("abierto", a);
+  document.body.classList.toggle("bloqueado", a);
+}
+
+/* =========================================================
+   Eventos
+   ========================================================= */
+$("generar").addEventListener("click", nuevoNumero);
+$("nuevo").addEventListener("click", nuevoNumero);
+$("mic").addEventListener("click", alternarMicro);
+
+document.addEventListener("keydown", e=>{
+  const escribiendo = /input|select|textarea/i.test(e.target.tagName);
+  if(escribiendo || $("panel").classList.contains("abierto")) return;
+  if(e.code === "Space"){ e.preventDefault(); nuevoNumero(); }
+  if(e.key.toLowerCase() === "m"){ e.preventDefault(); alternarMicro(); }
+});
+$("leer").addEventListener("click", ()=>{
+  if(objetivo === null){ decirAviso("Genera un número primero.","info"); return; }
+  leer(String(objetivo));
+});
+$("hablar").addEventListener("click", ()=>$("leer").click());
+
+$("cfgEfectos").addEventListener("change", e=>{ cfg.efectos = e.target.checked; guardarCfg(); });
+$("cfgVolumen").addEventListener("input", e=>{
+  cfg.volumen = parseFloat(e.target.value);
+  $("valVol").textContent = Math.round(cfg.volumen*100)+"%"; guardarCfg();
+});
+$("probarOk").addEventListener("click", ()=>{ if(cfg.efectos) sonarAcierto(); });
+$("probarMal").addEventListener("click", ()=>{ if(cfg.efectos) sonarFallo(); });
+$("reiniciar").addEventListener("click", ()=>{ aciertos=fallos=racha=0; marcadores(); decirAviso("Marcador a cero.","info"); });
+$("comprobar").addEventListener("click", ()=>{
+  const v = parseInt($("escrito").value,10);
+  if(!Number.isFinite(v)){ decirAviso("Escribe un número para comprobarlo.","info"); return; }
+  if(objetivo === null){ decirAviso("Genera un número primero.","info"); return; }
+  $("escrito").value = "";
+  evaluar([v], String(v));
+});
+$("escrito").addEventListener("keydown", e=>{ if(e.key==="Enter") $("comprobar").click(); });
+
+$("abrirAjustes").addEventListener("click", ()=>abrirPanel(true));
+$("cerrarAjustes").addEventListener("click", ()=>abrirPanel(false));
+$("velo").addEventListener("click", ()=>abrirPanel(false));
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") abrirPanel(false); });
+
+$("cfgMin").addEventListener("change", e=>{
+  cfg.min = Math.min(LIMITE_MAX-1, Math.max(LIMITE_MIN, parseInt(e.target.value,10)||LIMITE_MIN));
+  if(cfg.min >= cfg.max) cfg.max = Math.min(LIMITE_MAX, cfg.min+1);
+  pintarPanel(); guardarCfg();
+});
+$("cfgMax").addEventListener("change", e=>{
+  cfg.max = Math.min(LIMITE_MAX, Math.max(LIMITE_MIN+1, parseInt(e.target.value,10)||LIMITE_MAX));
+  if(cfg.max <= cfg.min) cfg.min = Math.max(LIMITE_MIN, cfg.max-1);
+  pintarPanel(); guardarCfg();
+});
+$("anadirTramo").addEventListener("click", ()=>{
+  cfg.tramos.push({min:cfg.min, max:cfg.max, peso:1});
+  pintarTramos(); validarTramos(); guardarCfg();
+});
+$("cfgIntentos").addEventListener("change", e=>{
+  cfg.intentos = Math.min(10, Math.max(1, parseInt(e.target.value,10)||3));
+  e.target.value = cfg.intentos; pintarIntentos(); guardarCfg();
+});
+$("cfgAutoAcierto").addEventListener("change", e=>{ cfg.autoAcierto = e.target.checked; guardarCfg(); });
+$("cfgAutoMic").addEventListener("change", e=>{ cfg.autoMic = e.target.checked; guardarCfg(); });
+$("cfgNoRepetir").addEventListener("change", e=>{ cfg.noRepetir = e.target.checked; guardarCfg(); });
+$("cfgIdioma").addEventListener("change", e=>{
+  cfg.idioma = e.target.value;
+  if(recog){
+    recog.lang = cfg.idioma;
+    if(micEncendido){ try{ recog.abort(); }catch(err){} }   // se reanuda solo con el idioma nuevo
+  }
+  guardarCfg();
+});
+$("cfgVelocidad").addEventListener("input", e=>{
+  cfg.velocidad = parseFloat(e.target.value);
+  $("valVel").textContent = cfg.velocidad.toFixed(1)+"×"; guardarCfg();
+});
+
+/* =========================================================
+   Arranque
+   ========================================================= */
+(async function inicio(){
+  await cargarCfg();
+  prepararMicro();
+  pintarPanel();
+  pintarNumero(null);
+  marcadores();
+  pintarMic();
+  if(SR && !window.isSecureContext){
+    $("mic").disabled = true;
+    pista("Esta página está abierta sin HTTPS y el navegador no permite el micrófono aquí. Publícala o ábrela en local con https, y mientras tanto escribe el número.");
+  }
+  window.addEventListener("pagehide", soltarPermiso);
+})();
+</script>
+</body>
+</html>
