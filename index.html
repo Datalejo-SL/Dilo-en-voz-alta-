@@ -606,11 +606,20 @@ function leer(texto, alTerminar){
   if(!("speechSynthesis" in window)){ if(alTerminar) alTerminar(); return; }
   speechSynthesis.cancel();
   pausado = true;                       // no evaluar lo que dice la propia página
+  // En móvil el altavoz y el reconocedor se pelean por el micrófono: se pausa la escucha
+  const reanudar = esMovil && !esIOS && micEncendido;
+  if(reanudar){
+    clearTimeout(temporizadorReinicio);
+    if(recog){ try{ recog.abort(); }catch(e){} }
+  }
   let hecho = false;
   const terminar = () => {
     if(hecho) return;
     hecho = true;
-    setTimeout(()=>{ pausado = false; }, 250);
+    setTimeout(()=>{
+      pausado = false;
+      if(reanudar && micEncendido) arrancarEscucha();
+    }, 300);
     if(alTerminar) alTerminar();
   };
   const u = new SpeechSynthesisUtterance(texto);
@@ -630,7 +639,9 @@ function leer(texto, alTerminar){
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const esIOS = /iP(hone|ad|od)/.test(navigator.userAgent) ||
               (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const esMovil = esIOS || /Android|Mobile/i.test(navigator.userAgent);
 let micEncendido = false, streamMic = null, pausado = false, temporizadorReinicio = null;
+let vigilante = null, huboAudio = false, vacios = 0;
 
 function pista(txt, html){
   if(html) $("pista").innerHTML = txt; else $("pista").textContent = txt;
@@ -641,12 +652,16 @@ function pintarMic(){
   $("mic").title = micEncendido ? "Apagar micrófono" : "Encender micrófono";
 }
 
-/* Pide el permiso una única vez y conserva la conexión mientras el micro está encendido */
+/* Pide el permiso una única vez.
+   En móvil se suelta enseguida: si la página retiene el micrófono,
+   el reconocedor de Android se queda sin audio y no entiende nada. */
 async function pedirPermiso(){
   if(streamMic) return true;
   if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
   try{
-    streamMic = await navigator.mediaDevices.getUserMedia({audio:true});
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    if(esMovil) stream.getTracks().forEach(t => t.stop());
+    else streamMic = stream;
     return true;
   }catch(err){
     if(err.name === "NotAllowedError" || err.name === "SecurityError")
@@ -669,10 +684,13 @@ function prepararMicro(){
     return;
   }
   recog = new SR();
-  recog.continuous = !esIOS;   // en iPhone la sesión larga no es fiable
+  recog.continuous = !esMovil;              // en móvil la escucha continua no entrega resultados
   recog.interimResults = true;
-  recog.maxAlternatives = 3;
+  recog.maxAlternatives = esMovil ? 1 : 3;  // Android falla con varias alternativas
   recog.lang = cfg.idioma;
+
+  recog.onaudiostart = () => { huboAudio = true; clearTimeout(vigilante); };
+  recog.onspeechstart = () => { if(objetivo !== null) pista("Te oigo…"); };
 
   recog.onstart = () => {
     escuchando = true;
@@ -681,6 +699,7 @@ function prepararMicro(){
 
   recog.onend = () => {
     escuchando = false;
+    clearTimeout(vigilante);
     if(!micEncendido) return;
     if(esIOS){                       // iPhone: hay que volver a tocar el botón
       micEncendido = false; pintarMic();
@@ -688,7 +707,8 @@ function prepararMicro(){
       return;
     }
     clearTimeout(temporizadorReinicio);   // el navegador corta por silencio: se reanuda solo
-    temporizadorReinicio = setTimeout(() => { if(micEncendido) arrancarEscucha(); }, 300);
+    if(pausado) return;                   // la página está hablando: se reanuda al terminar
+    temporizadorReinicio = setTimeout(() => { if(micEncendido && !pausado) arrancarEscucha(); }, esMovil ? 450 : 300);
   };
 
   recog.onerror = e => {
@@ -724,6 +744,12 @@ function prepararMicro(){
 function arrancarEscucha(){
   if(!recog || escuchando) return;
   recog.lang = cfg.idioma;
+  huboAudio = false;
+  clearTimeout(vigilante);
+  vigilante = setTimeout(() => {
+    if(micEncendido && !huboAudio)
+      pista("El navegador no está enviando audio. Prueba con Chrome, revisa que ninguna otra app esté usando el micrófono, o escribe el número abajo.");
+  }, 9000);
   try{ recog.start(); }
   catch(e){ /* ya estaba arrancando */ }
 }
@@ -744,6 +770,7 @@ async function encenderMicro(){
 function apagarMicro(){
   micEncendido = false;
   clearTimeout(temporizadorReinicio);
+  clearTimeout(vigilante);
   if(recog){ try{ recog.abort(); }catch(e){} }
   soltarPermiso();
   escuchando = false;
